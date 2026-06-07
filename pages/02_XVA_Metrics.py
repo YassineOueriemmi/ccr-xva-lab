@@ -37,11 +37,13 @@ with st.sidebar:
                 unsafe_allow_html=True)
     _cp = cps[0] if cps else {}
     _suggested_cds = _cp.get("suggested_cds", 120)
-    st.caption(f"Indicative CDS for {_cp.get('name', 'counterparty')} "
-               f"({_cp.get('rating', '—')}): {_suggested_cds} bps")
+    _suggested_recovery = _cp.get("suggested_recovery", 0.40)
+    st.caption(f"Indicative for {_cp.get('name', 'counterparty')} "
+               f"({_cp.get('rating', '—')}): {_suggested_cds} bps CDS · "
+               f"{_suggested_recovery:.0%} recovery")
     cds_bps = st.number_input("Counterparty CDS (bps)", value=_suggested_cds,
                               min_value=1, max_value=5000, step=5)
-    recovery = st.number_input("Recovery rate", value=0.40,
+    recovery = st.number_input("Recovery rate", value=_suggested_recovery,
                                min_value=0.0, max_value=0.99, step=0.01, format="%.2f")  # pas de recovery negative
 
     # pour les FVA/MVA
@@ -61,20 +63,16 @@ with st.sidebar:
 # Compute XVA
 cva_result = calculate_cva(EE, t, cds_bps, recovery, rf)
 fva_result = calculate_fva(EE, t, funding_spread, rf)
-mva_result = calculate_mva(
-    init_margin_dollars=init_margin * 1e6,
-    t=t,
-    funding_spread_bps=funding_spread,
-    risk_free_rate=rf,
-)
+mva_result = calculate_mva(init_margin_dollars=init_margin * 1e6,
+                           t=t, funding_spread_bps=funding_spread, risk_free_rate=rf)
 
 
-cva_cost = cva_result["CVA"]       # positive: cost to bank
-fva_cost = fva_result["FVA"]       # positive: cost to bank
-mva_cost = mva_result["MVA"]       # positive: cost to bank
+cva_cost = cva_result["CVA"]
+fva_cost = fva_result["FVA"]
+mva_cost = mva_result["MVA"]
 
 total_xva_cost = cva_cost + fva_cost + mva_cost
-risk_free_mtm = float(params.get("current_mtm", 2e6))
+risk_free_mtm = params["current_mtm"]
 adjusted_value = risk_free_mtm - total_xva_cost
 
 # XVA SUMMARY
@@ -91,8 +89,8 @@ st.metric("XVA-Adjusted Value", fmt(adjusted_value))
 # Waterfall
 section_title("WATERFALL — RISK-FREE VALUE → XVA-ADJUSTED VALUE")
 
-wf_labels = ["MtM (Risk-Free)", "− CVA Cost",
-             "− FVA Cost", "− MVA Cost", "XVA-Adjusted"]
+wf_labels = ["MtM (Risk-Free)", "− CVA Cost", "− FVA Cost",
+             "− MVA Cost", "XVA-Adjusted"]
 wf_y = [risk_free_mtm, -cva_cost, -fva_cost, -mva_cost, 0]
 wf_measure = ["absolute", "relative", "relative", "relative", "total"]
 wf_text = [
@@ -100,8 +98,7 @@ wf_text = [
     f"−{fmt(cva_cost)}",
     f"−{fmt(fva_cost)}",
     f"−{fmt(mva_cost)}",
-    fmt(adjusted_value),
-]
+    fmt(adjusted_value)]
 
 fig_wf = go.Figure(go.Waterfall(
     orientation="v",
@@ -113,8 +110,7 @@ fig_wf = go.Figure(go.Waterfall(
     connector=dict(line=dict(color="#555", width=1.5, dash="dot")),
     decreasing=dict(marker_color=RED),
     increasing=dict(marker_color=GREEN),
-    totals=dict(marker_color=ORANGE),
-))
+    totals=dict(marker_color=ORANGE)))
 apply_layout(fig_wf, height=380,
              title="XVA Waterfall — Fair-Value Adjustments",
              showlegend=False)

@@ -1,6 +1,5 @@
-""" Model Methodology"""
-from utils.ui import (inject_css, page_header, section_title, formula_box,
-                      bbg_header, ORANGE, GOLD, TEAL, BLUE, MGRAY)
+from utils.ui import (inject_css, page_header, section_title,
+                      formula_box, bbg_header, ORANGE, GOLD, TEAL, BLUE, MGRAY)
 import pandas as pd
 import streamlit as st
 import sys
@@ -14,7 +13,7 @@ page_header("04", "METHODOLOGY",
             "Model workflow")
 
 
-# 1. PROJECT OBJECTIVE
+# 1. Proket objective
 
 section_title("PROJECT OBJECTIVE")
 st.markdown("""
@@ -30,7 +29,7 @@ translated into simplified XVA and CVA risk metrics.
 """, unsafe_allow_html=True)
 
 
-# 2. WORKFLOW OVERVIEW
+# 2. workflow overview
 
 section_title("WORKFLOW OVERVIEW")
 
@@ -60,7 +59,7 @@ for col, (num, title, desc, color) in zip(cols, _steps):
 st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
 
 
-# 3. EXPOSURE ENGINE
+# 3. exposure engine
 
 section_title("1 — EXPOSURE ENGINE")
 st.markdown("""
@@ -72,11 +71,11 @@ which feeds directly into the CVA calculation.
 
 with st.expander("Formulas", expanded=False):
     formula_box("Exposure(t) = max(MtM(t), 0)")
-    formula_box("EE(t) = E[ max(MtM(t), 0) ] &nbsp;— Expected Exposure")
+    formula_box("EE(t) = E[ max(MtM(t), 0) ]")
     formula_box("PFE₉₅(t) = 95th percentile of Exposure(t)")
 
 
-# 4. XVA METRICS
+# 4. XVA metrics
 
 section_title("2 — XVA METRICS")
 st.markdown("""
@@ -96,7 +95,7 @@ with st.expander("Formulas", expanded=False):
         "λ = CDS spread / LGD &nbsp;|&nbsp; ΔPD(tᵢ) = exp(−λ·tᵢ₋₁) − exp(−λ·tᵢ)")
 
 
-# 5. CVA RISK & VAR
+# 5. CVA risk and VAR
 
 section_title("3 — CVA RISK & VAR")
 

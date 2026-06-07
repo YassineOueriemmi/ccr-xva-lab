@@ -1,8 +1,7 @@
-"""CVA Risk & VaR"""
+
 from models.credit import run_stress_tests, simulate_cva_var
 from utils.ui import (inject_css, page_header, section_title, formula_box,
-                      apply_layout, bbg_header, disclaimer, fmt,
-                      ORANGE, RED, GOLD, MGRAY, BLUE, GREEN)
+                      apply_layout, bbg_header, disclaimer, fmt, ORANGE, RED, GOLD, MGRAY, BLUE, GREEN)
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
@@ -12,9 +11,9 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
-_cps = st.session_state.get("counterparties", [{"name": "Counterparty 1"}])
+_cps = st.session_state.get("counterparties", [{"name": "Counterparty"}])
 _cp = _cps[0] if _cps else {}
-_cp_label = f"{_cp.get('name', 'Counterparty 1')} ({_cp.get('rating', '—')})"
+_cp_label = f"{_cp.get('name', 'Counterparty')} ({_cp.get('rating', '—')})"
 
 inject_css()
 bbg_header(f"03 · CVA RISK & VAR — {_cp_label}")
@@ -39,20 +38,26 @@ with st.sidebar:
     st.markdown('<div style="font-size:8px;color:#444;text-transform:uppercase;'
                 'letter-spacing:.2em;padding:16px 0 8px;">BASE PARAMETERS</div>',
                 unsafe_allow_html=True)
-    cds_bps = st.number_input("Base CDS spread (bps)", value=120,
+    # recup le CDS et la recovery from rating ou par défaut taux génériques
+    _suggested_cds = _cp.get("suggested_cds", 120)
+    _suggested_recovery = _cp.get("suggested_recovery", 0.40)
+    st.caption(f"Indicative for {_cp.get('name', 'counterparty')} "
+               f"({_cp.get('rating', '—')}): {_suggested_cds} bps CDS · "
+               f"{_suggested_recovery:.0%} recovery")
+    cds_bps = st.number_input("Base CDS spread (bps)", value=_suggested_cds,
                               min_value=1, max_value=5000, step=5)
-    recovery = st.number_input("Recovery rate", value=0.40,
+    recovery = st.number_input("Recovery rate", value=_suggested_recovery,
                                min_value=0.0, max_value=0.99, step=0.01, format="%.2f")
 
     st.markdown(_lbl.format("MONTE CARLO CVA VAR"), unsafe_allow_html=True)
     n_scenarios = st.select_slider("Scenarios",
-                                   options=[1_000, 5_000,
-                                            10_000, 50_000, 100_000],
-                                   value=10_000)
-    horizon_days = st.number_input("VaR horizon (days)", value=10,
-                                   min_value=1, max_value=252, step=1)
-    spread_vol = st.number_input("Annual spread vol (bps)", value=60,
-                                 min_value=1, max_value=500, step=5)
+                                   options=[1000, 5000, 10000, 50000, 10_000], value=10000)
+    horizon_days = st.number_input(
+        # 10 jours par defaut
+        "VaR horizon (days)", value=10, min_value=1, max_value=252, step=1)
+    spread_vol = st.number_input(
+        # vol annuel
+        "Annual spread vol (bps)", value=60, min_value=1, max_value=500, step=5)
     mc_seed = st.number_input("Seed", value=42, min_value=0, step=1)
 
 # Tabs
@@ -77,21 +82,19 @@ with tab_stress:
             st.session_state["stress_results"] = run_stress_tests(
                 EE_base=EE, t=t,
                 base_cds_bps=cds_bps, base_recovery=recovery,
-                risk_free_rate=rf,
-            )
+                risk_free_rate=rf)
 
         stress_rows = st.session_state["stress_results"]
-        base_cva_cost = stress_rows[0]["Base CVA Cost"]
+        base_cva_cost = stress_rows[0]["Base CVA Cost"]  # CVA de base
+        # pire CVA
         worst = max(stress_rows, key=lambda r: r["Stressed CVA Cost"])
 
-        # KPI cards
         section_title("CVA COST SUMMARY")
         c1, c2, c3 = st.columns(3)
         c1.metric("Base CVA Cost",  fmt(base_cva_cost))
         c2.metric("Worst CVA Cost", fmt(worst["Stressed CVA Cost"]))
         c3.metric("Max Δ CVA Cost", fmt(worst["Δ CVA Cost"]))
 
-        # Table
         section_title("SCENARIO RESULTS")
 
         def color_pct(v):
@@ -99,7 +102,7 @@ with tab_stress:
                 return "color: #FF3333"
             if v > 20:
                 return "color: #FFB300"
-            return "color: #888888"
+            return "color: #33CC66"
 
         df_stress = pd.DataFrame(stress_rows)
         st.dataframe(
@@ -117,7 +120,6 @@ with tab_stress:
             hide_index=True,
         )
 
-        # Chart
         section_title("CVA COST UNDER STRESS SCENARIOS")
         base_line = base_cva_cost / 1e6
         scenarios = [r["Scenario"] for r in stress_rows]
@@ -126,21 +128,16 @@ with tab_stress:
             RED if c > base_line * 1.50 else
             GOLD if c > base_line * 1.10 else
             ORANGE
-            for c in cvas_m
-        ]
+            for c in cvas_m]
         fig_s = go.Figure()
-        fig_s.add_trace(go.Bar(x=scenarios, y=cvas_m, marker_color=colors,
-                               name="Stressed CVA Cost"))
+        fig_s.add_trace(go.Bar(x=scenarios, y=cvas_m,
+                        marker_color=colors, name="Stressed CVA Cost"))
         fig_s.add_hline(y=base_line, line=dict(color=ORANGE, dash="dash"),
-                        annotation_text=f"Base: {fmt(base_cva_cost)}",
-                        annotation_font_color=ORANGE)
-        apply_layout(fig_s, height=320,
-                     xaxis_title="Stress Scenario", yaxis_title="CVA Cost ($M)",
-                     title="CVA Cost Under Stress Scenarios")
+                        annotation_text=f"Base: {fmt(base_cva_cost)}", annotation_font_color=ORANGE)
+        apply_layout(fig_s, height=320, xaxis_title="Stress Scenario",
+                     yaxis_title="CVA Cost ($M)", title="CVA Cost Under Stress Scenarios")
         st.plotly_chart(fig_s, use_container_width=True)
 
-    else:
-        st.info("Click **▶ RUN STRESS TESTS** to run the scenarios.")
 
 # MONTE CARLO CVA VAR
 
@@ -165,12 +162,10 @@ with tab_var:
                 spread_vol_bps=float(spread_vol),
                 horizon_days=int(horizon_days),
                 n_scenarios=int(n_scenarios),
-                seed=int(mc_seed),
-            )
+                seed=int(mc_seed))
 
         vr = st.session_state["var_results"]
 
-        # KPI cards
         section_title("CVA VAR SUMMARY")
         v1, v2, v3 = st.columns(3)
         v1.metric("Base CVA Cost",   fmt(vr["base_cva"]))
@@ -187,8 +182,7 @@ with tab_var:
         fig_h = go.Figure()
         fig_h.add_trace(go.Histogram(
             x=delta_m, nbinsx=80,
-            marker_color=ORANGE, opacity=0.7, name="ΔCVA",
-        ))
+            marker_color=ORANGE, opacity=0.7, name="ΔCVA"))
         fig_h.add_vline(x=vr["var_95"] / 1e6,
                         line=dict(color=GOLD, width=2, dash="dash"),
                         annotation_text="VaR 95%", annotation_font_color=GOLD,
@@ -212,8 +206,7 @@ with tab_var:
         fig_sp = go.Figure()
         fig_sp.add_trace(go.Histogram(
             x=vr["stressed_spreads"], nbinsx=80,
-            marker_color=BLUE, opacity=0.7, name="Stressed CDS",
-        ))
+            marker_color=BLUE, opacity=0.7, name="Stressed CDS"))
         fig_sp.add_vline(x=cds_bps,
                          line=dict(color=ORANGE, width=2, dash="dash"),
                          annotation_text=f"Base {cds_bps} bps",
@@ -229,16 +222,14 @@ with tab_var:
         _max_pts = 3_000
         _idx = np.random.default_rng(0).choice(
             len(vr["stressed_spreads"]), size=min(_max_pts, len(vr["stressed_spreads"])),
-            replace=False
-        )
+            replace=False)
         fig_sc = go.Figure()
         fig_sc.add_trace(go.Scatter(
             x=vr["stressed_spreads"][_idx],
             y=vr["stressed_cvas"][_idx] / 1e6,
             mode="markers",
             marker=dict(color=ORANGE, size=3, opacity=0.4),
-            name="Scenarios",
-        ))
+            name="Scenarios"))
         fig_sc.add_vline(x=cds_bps, line=dict(color=ORANGE, width=1.5, dash="dash"),
                          annotation_text="Base spread", annotation_font_color=ORANGE)
         apply_layout(fig_sc, height=280,
@@ -246,7 +237,3 @@ with tab_var:
                      yaxis_title="Stressed CVA Cost ($M)",
                      title="CVA Cost vs Stressed CDS Spread")
         st.plotly_chart(fig_sc, use_container_width=True)
-
-    else:
-        st.info(
-            "Set Monte Carlo parameters in the sidebar and click **▶ RUN MONTE CARLO CVA VAR**.")
