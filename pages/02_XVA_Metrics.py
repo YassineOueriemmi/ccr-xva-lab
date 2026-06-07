@@ -66,9 +66,10 @@ cva_result = calculate_cva(EE, t, cds_bps, recovery, rf)
 dva_result = calculate_dva(ENE, t, own_cds, own_rec, rf)
 fva_result = calculate_fva(EE, t, funding_spread, rf)
 mva_result = calculate_mva(
-    notional=notional, exposure_vol=vol, t=t,
-    funding_spread_bps=funding_spread, risk_free_rate=rf,
-    mpor_days=int(mpor_days), init_margin_dollars=init_margin * 1e6,
+    init_margin_dollars=init_margin * 1e6,
+    t=t,
+    funding_spread_bps=funding_spread,
+    risk_free_rate=rf,
 )
 
 

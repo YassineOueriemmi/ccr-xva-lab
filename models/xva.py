@@ -1,50 +1,45 @@
-"""
-All functions return dicts; all CVA/DVA/FVA/MVA scalars are POSITIVE (costs/benefits).
-"""
+
 import numpy as np
 
 
 # Credit helpers
 
-def hazard_rate(cds_spread_bps: float, lgd: float) -> float:
-    return (cds_spread_bps / 10_000) / lgd
+def hazard_rate(cds_spread_bps: float, lgd: float) -> float:  # = CDS spread / LGD
+    return (cds_spread_bps / 10000) / lgd
 
 
-def survival_prob(t: np.ndarray, lam: float) -> np.ndarray:
+def survival_prob(t: np.ndarray, lam: float) -> np.ndarray:  # = e^(−λ·t)
     return np.exp(-lam * t)
 
 
-def cumulative_pd(t: np.ndarray, lam: float) -> np.ndarray:
+def cumulative_pd(t: np.ndarray, lam: float) -> np.ndarray:  # = 1 − e^(−λ·t)
     return 1.0 - survival_prob(t, lam)
 
 
-def marginal_pd(t: np.ndarray, lam: float) -> np.ndarray:
+def marginal_pd(t: np.ndarray, lam: float) -> np.ndarray:  # = Q(tᵢ) − Q(tᵢ₋₁)
     return np.diff(cumulative_pd(t, lam))
 
 
-def discount_factors(t: np.ndarray, r: float) -> np.ndarray:
+def discount_factors(t: np.ndarray, r: float) -> np.ndarray:  # = e^(−r·t)
     return np.exp(-r * t)
 
 
-# CVA — Credit Valuation Adjustment
+# CVA = Σᵢ DF(tᵢ) * ΔPD_cp(tᵢ) * LGD * EE(tᵢ)
 
 def calculate_cva(
-    EE: np.ndarray,
-    t: np.ndarray,
-    cds_spread_bps: float,
-    recovery: float,
-    risk_free_rate: float,
-) -> dict:
-    """
-    CVA = Σᵢ DF(tᵢ) · ΔPD_cp(tᵢ) · LGD · EE(tᵢ)
-    Returns CVA as a POSITIVE cost
-    """
+        EE: np.ndarray,
+        t: np.ndarray,
+        cds_spread_bps: float,
+        recovery: float,
+        risk_free_rate: float) -> dict:
+
     lgd = 1.0 - recovery
     lam = hazard_rate(cds_spread_bps, lgd)
     marg_pd_ = marginal_pd(t, lam)
+    # On utilise le mid de l'intervalle de proba de default, psk on suppose qu'il arrive au milieu
     t_mid = 0.5 * (t[:-1] + t[1:])
     df = discount_factors(t_mid, risk_free_rate)
-    ee_mid = 0.5 * (EE[:-1] + EE[1:])
+    ee_mid = 0.5 * (EE[:-1] + EE[1:])  # interpolation linéaire
 
     contributions = df * marg_pd_ * lgd * ee_mid
     cva_cost = float(np.sum(contributions))
@@ -56,23 +51,18 @@ def calculate_cva(
         "marg_pd": marg_pd_,
         "ee_mid": ee_mid,
         "lgd": lgd,
-        "hazard_rate": lam,
-    }
+        "hazard_rate": lam}
 
 
-# DVA — Debit Valuation Adjustment
+#  DVA = Σᵢ DF(tᵢ) * ΔPD_bank(tᵢ) * LGD_bank * ENE(tᵢ) (même logique que la CVA, juste des inputs differents)
 
 def calculate_dva(
-    ENE: np.ndarray,
-    t: np.ndarray,
-    own_cds_spread_bps: float,
-    own_recovery: float,
-    risk_free_rate: float,
-) -> dict:
-    """
-    DVA = Σᵢ DF(tᵢ) · ΔPD_bank(tᵢ) · LGD_bank · ENE(tᵢ)
-    Returns DVA as a POSITIVE benefit
-    """
+        ENE: np.ndarray,
+        t: np.ndarray,
+        own_cds_spread_bps: float,
+        own_recovery: float,
+        risk_free_rate: float,) -> dict:
+
     own_lgd = 1.0 - own_recovery
     lam_bank = hazard_rate(own_cds_spread_bps, own_lgd)
     marg_pd_bank = marginal_pd(t, lam_bank)
@@ -90,24 +80,20 @@ def calculate_dva(
         "marg_pd": marg_pd_bank,
         "ene_mid": ene_mid,
         "lgd": own_lgd,
-        "hazard_rate": lam_bank,
-    }
+        "hazard_rate": lam_bank}
 
 
-# FVA — Funding Valuation Adjustment
+# FVA = Σᵢ DF(tᵢ) * spread_funding * EE(tᵢ) * Δt
 
 def calculate_fva(
-    EE: np.ndarray,
-    t: np.ndarray,
-    funding_spread_bps: float,
-    risk_free_rate: float,
-) -> dict:
-    """
-    FVA = Σᵢ DF(tᵢ) · s_f · EE(tᵢ) · Δt
-    Returns FVA as a POSITIVE cost.
-    """
-    spread = funding_spread_bps / 10_000
-    t_mid = 0.5 * (t[:-1] + t[1:])
+        EE: np.ndarray,
+        t: np.ndarray,
+        funding_spread_bps: float,
+        risk_free_rate: float) -> dict:
+
+    spread = funding_spread_bps / 10000
+    t_mid = 0.5 * (t[:-1] + t[1:])  # millieu de l'interval comme pour le CVA
+    # Le coût de financement s'accumule proportionnellement au temps
     dt = np.diff(t)
     df = discount_factors(t_mid, risk_free_rate)
     ee_mid = 0.5 * (EE[:-1] + EE[1:])
@@ -121,55 +107,35 @@ def calculate_fva(
         "t_mid": t_mid,
         "ee_mid": ee_mid,
         "dt": dt,
-        "spread": spread,
-    }
+        "spread": spread}
 
 
-# MVA — Margin Valuation Adjustment
+#  MVA = Σᵢ DF(tᵢ) * s_f * IM * Δt
 
 def calculate_mva(
-    notional: float,
-    exposure_vol: float,
-    t: np.ndarray,
-    funding_spread_bps: float,
-    risk_free_rate: float,
-    mpor_days: int = 10,
-    init_margin_dollars: float = 0.0,
-    z_99: float = 2.326,
-) -> dict:
-    """
-    IM = manual if > 0, else z₉₉ · σ · N · √(MPOR/252)
-    MVA = Σᵢ DF(tᵢ) · s_f · IM · Δt
-    Returns MVA as a POSITIVE cost.
-    """
-    if init_margin_dollars > 0:
-        im = init_margin_dollars
-        source = "manual"
-    else:
-        im = z_99 * exposure_vol * notional * np.sqrt(mpor_days / 252)
-        source = "estimated"
+        init_margin_dollars: float,
+        t: np.ndarray,
+        funding_spread_bps: float,
+        risk_free_rate: float) -> dict:
 
-    spread = funding_spread_bps / 10_000
+    spread = funding_spread_bps / 10000
     t_mid = 0.5 * (t[:-1] + t[1:])
     dt = np.diff(t)
     df = discount_factors(t_mid, risk_free_rate)
 
-    contributions = df * spread * im * dt
+    contributions = df * spread * init_margin_dollars * \
+        dt  # cout de financer l'IM sur chaque delta t
     mva_cost = float(np.sum(contributions))
 
     return {
-        "MVA": mva_cost,
+        "MVA":           mva_cost,
         "contributions": contributions,
-        "t_mid": t_mid,
-        "im": im,
-        "im_source": source,
-        "dt": dt,
-        "spread": spread,
-    }
+        "t_mid":         t_mid,
+        "im":            init_margin_dollars,
+        "spread":        spread}
 
 
-# Total XVA
+# Total XVA Cost = CVA - DVA + FVA + MVA  (on a que des scalaires positifs)
 
 def total_xva(cva: float, dva: float, fva: float, mva: float) -> float:
-    """Total XVA Cost = CVA - DVA + FVA + MVA  (all inputs are positive scalars)."""
     return cva - dva + fva + mva

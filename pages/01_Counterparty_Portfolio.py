@@ -1,6 +1,3 @@
-"""
-Portfolio setup and exposure simulation
-"""
 from models.simulation import simulate_exposure
 from utils.ui import (inject_css, page_header, section_title, formula_box,
                       apply_layout, bbg_header, disclaimer,
@@ -17,6 +14,46 @@ inject_css()
 bbg_header("01 · COUNTERPARTY PORTFOLIO & EXPOSURE SIMULATION")
 page_header("01", "COUNTERPARTY PORTFOLIO",
             "Counterparty setup · GBM exposure simulation")
+
+with st.expander("Trade structure & funding logic", expanded=False):
+    st.markdown("""
+The transaction consists of two offsetting legs:
+
+**Leg A — Uncollateralized trade with the corporate counterparty**
+
+The bank enters into a derivative transaction with a corporate client. As the trade evolves,
+the bank may have a positive mark-to-market (MtM), meaning the counterparty owes money to
+the bank. However, because the transaction is uncollateralized, no cash is exchanged before
+maturity.
+
+Economically, the bank holds a receivable on its balance sheet but cannot monetize it
+immediately. The exposure creates economic value, yet no corresponding cash inflow is
+received.
+
+**Leg B — Cleared hedge with a CCP**
+
+To hedge the market risk of Leg A, the bank enters into an offsetting transaction through a
+Central Counterparty (CCP).
+
+Unlike the corporate trade, the cleared hedge is fully collateralized. The CCP requires the
+posting of Initial Margin (IM) upfront, which remains locked throughout the life of the
+trade. Although the margin remains the bank's property, it cannot be freely used elsewhere
+and therefore generates a funding requirement.
+
+In addition, the CCP performs daily mark-to-market and exchanges Variation Margin (VM).
+Whenever the hedge moves against the bank, cash must be posted immediately to the CCP.
+
+As a result:
+- The cost of financing the Initial Margin is captured by the **Margin Valuation Adjustment (MVA)**.
+- The cost of financing the Variation Margin cash outflows, combined with the absence of
+  offsetting cash inflows from the uncollateralized client trade, is captured by the
+  **Funding Valuation Adjustment (FVA)**.
+
+The core economic issue is that the bank can generate gains on the client trade without
+receiving cash, while simultaneously being required to post cash to the CCP on the hedge.
+This liquidity mismatch creates a funding need that persists throughout the life of the
+transaction and gives rise to FVA.
+""")
 
 # Sidebar
 with st.sidebar:
@@ -81,7 +118,6 @@ if run or ("sim_results" in st.session_state):
             n_steps=n_steps,
             n_scenarios=n_scenarios,
             risk_free_rate=risk_free,
-            collateralized=False,
         )
         st.session_state["sim_results"] = results
         st.session_state["params"] = {
@@ -129,44 +165,6 @@ if run or ("sim_results" in st.session_state):
                  title="Monte Carlo MtM Paths")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Exposure distribution at selected time step
-    section_title("EXPOSURE DISTRIBUTION — PFE CROSS-SECTION")
-    t_idx = st.slider(
-        "Time step",
-        min_value=1, max_value=len(t) - 1, value=len(t) // 2,
-        key="dist_slider",
-    )
-    exp_slice = results["exposure_pos"][:, t_idx] / 1e6
-    ee_val = EE[t_idx] / 1e6
-    pfe_val = PFE95[t_idx] / 1e6
-    pfe99_val = results["PFE99"][t_idx] / 1e6
-    t_val = t[t_idx]
-
-    fig_dist = go.Figure()
-    fig_dist.add_trace(go.Histogram(
-        x=exp_slice,
-        nbinsx=60,
-        marker_color=ORANGE,
-        opacity=0.6,
-        name="Exposure dist.",
-    ))
-    fig_dist.add_vline(x=ee_val,    line=dict(color=ORANGE, width=2, dash="dot"),
-                       annotation_text=f"EE {ee_val:.2f}M",
-                       annotation_font_color=ORANGE, annotation_position="top right")
-    fig_dist.add_vline(x=pfe_val,   line=dict(color=GOLD,   width=2, dash="dash"),
-                       annotation_text=f"PFE 95% {pfe_val:.2f}M",
-                       annotation_font_color=GOLD, annotation_position="top right")
-    fig_dist.add_vline(x=pfe99_val, line=dict(color=RED,    width=1.5, dash="dash"),
-                       annotation_text=f"PFE 99% {pfe99_val:.2f}M",
-                       annotation_font_color=RED, annotation_position="top right")
-    apply_layout(fig_dist, height=300,
-                 xaxis_title="Exposure ($M)",
-                 yaxis_title="# scenarios",
-                 title=f"Exposure Distribution at t = {t_val:.2f} yr  "
-                 f"({results['exposure_pos'].shape[0]:,} scenarios)",
-                 bargap=0.02)
-    st.plotly_chart(fig_dist, use_container_width=True)
-
     # Exposure profile
     section_title("EXPOSURE PROFILES")
     fig = go.Figure()
@@ -174,7 +172,6 @@ if run or ("sim_results" in st.session_state):
                              line=dict(color=GOLD, width=1.5, dash="dash")))
     fig.add_trace(go.Scatter(x=t, y=EE/1e6, name="EE",
                              line=dict(color=ORANGE, width=2.5)))
-    fig.add_vline(x=t_val, line=dict(color="#333", width=1, dash="dot"))
     fig.add_hline(y=0, line=dict(color="#333", width=1))
     apply_layout(fig, height=300,
                  xaxis_title="Time (years)", yaxis_title="Exposure ($M)",

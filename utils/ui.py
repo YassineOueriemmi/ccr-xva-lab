@@ -1,31 +1,29 @@
-"""
-utils/ui.py — CCR & XVA Lab
-Design system: Bloomberg-style dark theme, identical to VOL LAB.
-"""
+
 import streamlit as st
 
-# ── Color tokens ─────────────────────────────────────────────────────────────
-BG      = "#000000"
+# Color tokens
+BG = "#000000"
 SURFACE = "#0a0a0a"
-BORDER  = "#1a1a1a"
-ORANGE  = "#FF6600"
-WHITE   = "#FFFFFF"
-LGRAY   = "#CCCCCC"
-MGRAY   = "#888888"
-DGRAY   = "#444444"
-GREEN   = "#00CC44"
-RED     = "#FF3333"
-BLUE    = "#0099FF"
-GOLD    = "#FFB300"
-PURPLE  = "#AA44FF"
-TEAL    = "#00BBBB"
+BORDER = "#1a1a1a"
+ORANGE = "#FF6600"
+WHITE = "#FFFFFF"
+LGRAY = "#CCCCCC"
+MGRAY = "#888888"
+DGRAY = "#444444"
+GREEN = "#00CC44"
+RED = "#FF3333"
+BLUE = "#0099FF"
+GOLD = "#FFB300"
+PURPLE = "#AA44FF"
+TEAL = "#00BBBB"
 
-# ── Plotly layout ─────────────────────────────────────────────────────────────
+
 LAYOUT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="#0a0a0a",
-    font=dict(family="IBM Plex Mono, Courier New, monospace", size=10, color="#888"),
+    font=dict(family="IBM Plex Mono, Courier New, monospace",
+              size=10, color="#888"),
     margin=dict(t=36, b=32, l=44, r=20),
     xaxis=dict(gridcolor="#1a1a1a", zerolinecolor="#222", color="#888"),
     yaxis=dict(gridcolor="#1a1a1a", zerolinecolor="#222", color="#888"),
@@ -35,12 +33,12 @@ LAYOUT = dict(
                     font=dict(family="IBM Plex Mono", size=11, color="#fff")),
 )
 
+
 def apply_layout(fig, height=340, **kw):
     fig.update_layout(**{**LAYOUT, "height": height, **kw})
     return fig
 
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap');
@@ -202,17 +200,20 @@ hr { border-color: #1a1a1a !important; }
 </style>
 """
 
+
 def inject_css():
     st.markdown(CSS, unsafe_allow_html=True)
+
 
 def bbg_header(right=""):
     st.markdown(
         f'<div class="bbg-bar">'
-        f'<span>▌ CCR & XVA LAB — COUNTERPARTY CREDIT RISK · XVA · REGULATORY METRICS</span>'
+        f'<span>▌ CCR & XVA LAB</span>'
         f'<span>{right}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
+
 
 def page_header(num, title, subtitle):
     st.markdown(
@@ -224,17 +225,22 @@ def page_header(num, title, subtitle):
         unsafe_allow_html=True,
     )
 
+
 def section_title(text, color=ORANGE):
-    st.markdown(f'<div class="sec-ttl" style="color:{color}">{text}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="sec-ttl" style="color:{color}">{text}</div>', unsafe_allow_html=True)
+
 
 def formula_box(html):
     st.markdown(f'<div class="formula">{html}</div>', unsafe_allow_html=True)
 
+
 def disclaimer(text):
-    st.markdown(f'<div class="disclaimer">⚠ {text}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="disclaimer">⚠ {text}</div>', unsafe_allow_html=True)
+
 
 def kpi_band(items):
-    """items: list of (label, sym, val_str, sub, color)"""
     html = '<div class="kpi-band">'
     for label, sym, val, sub, color in items:
         neg = str(val).startswith("-")
@@ -251,19 +257,23 @@ def kpi_band(items):
     html += "</div>"
     st.markdown(html, unsafe_allow_html=True)
 
-def apply_layout(fig, height=340, **kw):
-    fig.update_layout(**{**LAYOUT, "height": height, **kw})
-    return fig
+# Format a dollar value
+
 
 def fmt(v):
-    """Format a dollar value."""
-    if abs(v) >= 1e9: return f"${v/1e9:.2f}B"
-    if abs(v) >= 1e6: return f"${v/1e6:.2f}M"
-    if abs(v) >= 1e3: return f"${v/1e3:.1f}K"
+
+    if abs(v) >= 1e9:
+        return f"${v/1e9:.2f}B"
+    if abs(v) >= 1e6:
+        return f"${v/1e6:.2f}M"
+    if abs(v) >= 1e3:
+        return f"${v/1e3:.1f}K"
     return f"${v:.2f}"
+
 
 def fmt_bps(v):
     return f"{v:.0f} bps"
+
 
 def fmt_pct(v):
     return f"{v*100:.2f}%"
