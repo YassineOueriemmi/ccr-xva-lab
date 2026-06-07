@@ -12,10 +12,14 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+cps = st.session_state.get("counterparties", [{"name": "Counterparty 1"}])
+_cp = cps[0] if cps else {}
+_cp_label = f"{_cp.get('name', 'Counterparty 1')} ({_cp.get('rating', '—')})"
+
 inject_css()
-bbg_header("02 · XVA METRICS")
+bbg_header(f"02 · XVA METRICS — {_cp_label}")
 page_header("02", "XVA METRICS",
-            "Fair-value & funding adjustments")
+            f"Fair-value & funding adjustments · {_cp_label}")
 
 if "sim_results" not in st.session_state:
     st.info("Run the simulation in **01 Counterparty Portfolio** first.")
@@ -23,7 +27,6 @@ if "sim_results" not in st.session_state:
 
 results = st.session_state["sim_results"]
 params = st.session_state["params"]
-cps = st.session_state.get("counterparties", [{"name": "Counterparty 1"}])
 
 t = results["t"]
 EE = results["EE"]

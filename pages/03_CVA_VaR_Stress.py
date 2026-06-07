@@ -12,10 +12,14 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+_cps = st.session_state.get("counterparties", [{"name": "Counterparty 1"}])
+_cp = _cps[0] if _cps else {}
+_cp_label = f"{_cp.get('name', 'Counterparty 1')} ({_cp.get('rating', '—')})"
+
 inject_css()
-bbg_header("03 · CVA RISK & VAR")
+bbg_header(f"03 · CVA RISK & VAR — {_cp_label}")
 page_header("03", "CVA RISK & VAR",
-            "Deterministic stress scenarios · Monte Carlo CVA VaR")
+            f"Deterministic stress scenarios · Monte Carlo CVA VaR · {_cp_label}")
 
 if "sim_results" not in st.session_state:
     st.warning("Run the simulation in **01 Counterparty Portfolio** first.")
