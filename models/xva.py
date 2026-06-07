@@ -54,35 +54,6 @@ def calculate_cva(
         "hazard_rate": lam}
 
 
-#  DVA = Σᵢ DF(tᵢ) * ΔPD_bank(tᵢ) * LGD_bank * ENE(tᵢ) (même logique que la CVA, juste des inputs differents)
-
-def calculate_dva(
-        ENE: np.ndarray,
-        t: np.ndarray,
-        own_cds_spread_bps: float,
-        own_recovery: float,
-        risk_free_rate: float,) -> dict:
-
-    own_lgd = 1.0 - own_recovery
-    lam_bank = hazard_rate(own_cds_spread_bps, own_lgd)
-    marg_pd_bank = marginal_pd(t, lam_bank)
-    t_mid = 0.5 * (t[:-1] + t[1:])
-    df = discount_factors(t_mid, risk_free_rate)
-    ene_mid = 0.5 * (ENE[:-1] + ENE[1:])
-
-    contributions = df * marg_pd_bank * own_lgd * ene_mid
-    dva_benefit = float(np.sum(contributions))
-
-    return {
-        "DVA": dva_benefit,
-        "contributions": contributions,
-        "t_mid": t_mid,
-        "marg_pd": marg_pd_bank,
-        "ene_mid": ene_mid,
-        "lgd": own_lgd,
-        "hazard_rate": lam_bank}
-
-
 # FVA = Σᵢ DF(tᵢ) * spread_funding * EE(tᵢ) * Δt
 
 def calculate_fva(
@@ -134,8 +105,3 @@ def calculate_mva(
         "im":            init_margin_dollars,
         "spread":        spread}
 
-
-# Total XVA Cost = CVA - DVA + FVA + MVA  (on a que des scalaires positifs)
-
-def total_xva(cva: float, dva: float, fva: float, mva: float) -> float:
-    return cva - dva + fva + mva

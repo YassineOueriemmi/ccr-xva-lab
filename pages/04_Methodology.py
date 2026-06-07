@@ -23,8 +23,8 @@ The objective of this lab is to illustrate how an OTC derivative exposure profil
 translated into simplified XVA and CVA risk metrics. 
 </div>
 <div style="font-size:9px;color:#555;line-height:2.0;padding-left:12px;">
-· Simulate future MtM and exposure profiles (EE, ENE, PFE)<br>
-· Compute simplified CVA, DVA, FVA and MVA fair-value adjustments<br>
+· Simulate future MtM and exposure profiles (EE, PFE)<br>
+· Compute simplified CVA, FVA and MVA fair-value adjustments<br>
 · Perform deterministic CVA stress tests and spread-only Monte Carlo CVA VaR
 </div>
 """, unsafe_allow_html=True)
@@ -38,9 +38,9 @@ _steps = [
     ("01", "Trade Inputs",
      "Notional · MtM · maturity · volatility",             ORANGE),
     ("02", "Exposure Simulation",
-     "MtM paths → EE · ENE · PFE",                         ORANGE),
+     "MtM paths → EE · PFE",                               ORANGE),
     ("03", "XVA Metrics",
-     "CVA · DVA · FVA · MVA · adjusted value",              GOLD),
+     "CVA · FVA · MVA · adjusted value",                    GOLD),
     ("04", "CVA Risk & VaR",
      "Stress scenarios · Monte Carlo ΔCVA distribution",    GOLD),
     ("05", "Interpretation",
@@ -67,14 +67,12 @@ st.markdown("""
 <div style="font-size:9px;color:#555;line-height:1.9;margin-bottom:12px;">
 The exposure module simulates future MtM paths for a simplified OTC trade using
 Geometric Brownian Motion. Positive MtM generates counterparty exposure for the bank,
-negative MtM is used to compute expected negative exposure for DVA.
+which feeds directly into the CVA calculation.
 </div>""", unsafe_allow_html=True)
 
 with st.expander("Formulas", expanded=False):
     formula_box("Exposure(t) = max(MtM(t), 0)")
     formula_box("EE(t) = E[ max(MtM(t), 0) ] &nbsp;— Expected Exposure")
-    formula_box(
-        "ENE(t) = E[ max(−MtM(t), 0) ] &nbsp;— Expected Negative Exposure")
     formula_box("PFE₉₅(t) = 95th percentile of Exposure(t)")
 
 
@@ -84,16 +82,16 @@ section_title("2 — XVA METRICS")
 st.markdown("""
 <div style="font-size:9px;color:#555;line-height:1.9;margin-bottom:12px;">
 The XVA page converts the exposure profile into simplified fair-value adjustments.
-CVA and DVA are based on default probabilities implied from CDS spreads.
-FVA and MVA use simplified funding cost approximations over the EE profile.
+CVA is based on default probabilities implied from the counterparty's CDS spread.
+FVA and MVA use simplified funding cost approximations over the EE profile and the
+initial margin posted to the CCP.
 </div>""", unsafe_allow_html=True)
 
 with st.expander("Formulas", expanded=False):
     formula_box("CVA = Σ DF(tᵢ) × ΔPD_cp(tᵢ) × LGD × EE(tᵢ)")
-    formula_box("DVA = Σ DF(tᵢ) × ΔPD_bank(tᵢ) × LGD_bank × ENE(tᵢ)")
     formula_box("FVA = Σ DF(tᵢ) × s_f × EE(tᵢ) × Δt")
     formula_box("MVA = Σ DF(tᵢ) × s_f × IM × Δt")
-    formula_box("Adjusted Value = Risk-Free MtM − CVA + DVA − FVA − MVA")
+    formula_box("Adjusted Value = Risk-Free MtM − CVA − FVA − MVA")
     formula_box(
         "λ = CDS spread / LGD &nbsp;|&nbsp; ΔPD(tᵢ) = exp(−λ·tᵢ₋₁) − exp(−λ·tᵢ)")
 

@@ -29,8 +29,7 @@ def simulate_exposure(
         [col0, mtm0 * np.exp(log_paths)], axis=1) * notional
 
     EE = np.maximum(mtm_paths,  0).mean(axis=0)  # expected exposure
-    ENE = np.maximum(-mtm_paths, 0).mean(axis=0)  # Expected negative exposure
     PFE95 = np.percentile(np.maximum(mtm_paths, 0), 95,
                           axis=0)  # Potentiel Futur exposure
 
-    return {"t": t, "EE": EE, "ENE": ENE, "PFE95": PFE95, "mtm_paths": mtm_paths}
+    return {"t": t, "EE": EE, "PFE95": PFE95, "mtm_paths": mtm_paths}

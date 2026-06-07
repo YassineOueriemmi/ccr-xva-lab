@@ -1,7 +1,6 @@
 from models.simulation import simulate_exposure
-from utils.ui import (inject_css, page_header, section_title, formula_box,
-                      apply_layout, bbg_header, disclaimer,
-                      ORANGE, BLUE, GREEN, RED, PURPLE, GOLD, MGRAY)
+from utils.ui import (inject_css, page_header, section_title, formula_box, apply_layout,
+                      bbg_header, disclaimer, ORANGE, BLUE, GREEN, RED, PURPLE, GOLD, MGRAY)
 import plotly.graph_objects as go
 import numpy as np
 import streamlit as st
@@ -62,19 +61,22 @@ with st.sidebar:
                 unsafe_allow_html=True)
 
     notional = st.number_input(
-        "Notional ($)", value=100_000_000, step=10_000_000, format="%d")
+        "Notional ($)", value=100000000, step=10000000, format="%d")
     current_mtm = st.number_input(
-        "Current MtM ($)", value=2_000_000, step=100_000, format="%d")
+        "Current MtM ($)", value=2000000, min_value=1, step=100000, format="%d",
+        help="Doit être positif : un GBM appliqué au MtM ne peut pas changer de signe, "
+             "donc un MtM de départ négatif rendrait l'EE nulle. On ne traite ici que "
+             "le risque côté CVA (exposition positive sur la contrepartie), pas la DVA.")
     maturity = st.number_input(
         "Maturity (years)", value=5.0, min_value=0.5, max_value=30.0, step=0.5)
-    vol = st.number_input("Exposure volatility", value=0.15, min_value=0.01, max_value=1.0,
-                          step=0.01, format="%.2f")
+    vol = st.number_input("Exposure volatility", value=0.15,
+                          min_value=0.01, max_value=1.0, step=0.01, format="%.2f")
     n_steps = st.slider("Time steps", min_value=10,
                         max_value=60, value=20, step=5)
     n_scenarios = st.select_slider("Monte Carlo scenarios", options=[
                                    1000, 2000, 5000, 10000], value=5000)
-    risk_free = st.number_input("Risk-free rate", value=0.03, min_value=0.0, max_value=0.20,
-                                step=0.005, format="%.3f")
+    risk_free = st.number_input("Risk-free rate", value=0.03,
+                                min_value=0.0, max_value=0.20, step=0.005, format="%.3f")
 
 
 # Counterparty definition
@@ -82,10 +84,9 @@ section_title("COUNTERPARTY")
 
 RATINGS = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC"]
 
-# Indicative CDS spread by rating bucket — anchors the credit curve to the rating
-RATING_CDS_BPS = {
-    "AAA": 25, "AA": 40, "A": 60, "BBB": 120, "BB": 250, "B": 450, "CCC": 800,
-}
+# Indicative CDS spread by rating bucket
+RATING_CDS_BPS = {"AAA": 25, "AA": 40, "A": 60,
+                  "BBB": 120, "BB": 250, "B": 450, "CCC": 800}
 
 cols = st.columns([2, 1, 1])
 cols[0].markdown(
@@ -101,10 +102,11 @@ cp_name = row[0].text_input(
 cp_rating = row[1].selectbox(
     "Rating", RATINGS, index=3, label_visibility="collapsed", key="cp_rating")
 suggested_cds = RATING_CDS_BPS[cp_rating]
-row[2].markdown(f'<div style="padding-top:8px;color:{ORANGE};font-size:14px;">'
-                f'{suggested_cds} bps</div>', unsafe_allow_html=True)
+row[2].markdown(
+    f'<div style="padding-top:8px;color:{ORANGE};font-size:14px;">'f'{suggested_cds} bps</div>', unsafe_allow_html=True)
 
-counterparty = {"name": cp_name, "rating": cp_rating, "suggested_cds": suggested_cds}
+counterparty = {"name": cp_name, "rating": cp_rating,
+                "suggested_cds": suggested_cds}
 
 # Run simulation
 st.markdown("---")
@@ -127,14 +129,12 @@ if run or ("sim_results" in st.session_state):
             maturity=maturity,
             n_steps=n_steps,
             n_scenarios=n_scenarios,
-            risk_free_rate=risk_free,
-        )
+            risk_free_rate=risk_free)
         st.session_state["sim_results"] = results
         st.session_state["params"] = {
             "notional": notional, "current_mtm": current_mtm,
             "maturity": maturity, "vol": vol, "n_steps": n_steps,
-            "n_scenarios": n_scenarios, "risk_free": risk_free,
-        }
+            "n_scenarios": n_scenarios, "risk_free": risk_free}
         st.session_state["counterparties"] = [counterparty]
 
     results = st.session_state["sim_results"]
@@ -143,7 +143,6 @@ if run or ("sim_results" in st.session_state):
     EE = results["EE"]
     PFE95 = results["PFE95"]
 
-    # KPI band
     section_title("EXPOSURE SUMMARY")
 
     def fmt(v):
@@ -154,7 +153,9 @@ if run or ("sim_results" in st.session_state):
         return f"${v:.2f}"
 
     c1, c2, c3, c4 = st.columns(4)
+    # max = pic de risque, sous GBM pur la dispersion croît avec t donc EE culmine près de la maturité (pas de bosse comme un swap, c'est une limite du model mais on reste sur une simulation)
     c1.metric("Peak EE",   fmt(EE.max()))
+    # même logique que pour le peak EE
     c2.metric("PFE 95%",   fmt(PFE95.max()))
     c3.metric("Notional",  fmt(notional))
     c4.metric("Maturity",  f"{params['maturity']:.1f}y")
@@ -165,28 +166,22 @@ if run or ("sim_results" in st.session_state):
     n_show = min(50, mtm.shape[0])
     fig2 = go.Figure()
     for i in range(n_show):
-        fig2.add_trace(go.Scatter(x=t, y=mtm[i]/1e6, mode="lines",
-                                  line=dict(color=ORANGE, width=0.4),
-                                  opacity=0.3, showlegend=False))
+        fig2.add_trace(go.Scatter(x=t, y=mtm[i]/1e6, mode="lines", line=dict(
+            color=ORANGE, width=0.4), opacity=0.3, showlegend=False))
     fig2.add_trace(go.Scatter(x=t, y=EE/1e6, name="EE (mean)",
-                              line=dict(color=ORANGE, width=2.5)))
-    apply_layout(fig2, height=300,
-                 xaxis_title="Time (years)", yaxis_title="MtM ($M)",
-                 title="Monte Carlo MtM Paths")
+                   line=dict(color=ORANGE, width=2.5)))
+    apply_layout(fig2, height=300, xaxis_title="Time (years)",
+                 yaxis_title="MtM ($M)", title="Monte Carlo MtM Paths")
     st.plotly_chart(fig2, use_container_width=True)
 
     # Exposure profile
     section_title("EXPOSURE PROFILES")
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=t, y=PFE95/1e6, name="PFE 95%",
-                             line=dict(color=GOLD, width=1.5, dash="dash")))
+                  line=dict(color=GOLD, width=1.5, dash="dash")))
     fig.add_trace(go.Scatter(x=t, y=EE/1e6, name="EE",
-                             line=dict(color=ORANGE, width=2.5)))
+                  line=dict(color=ORANGE, width=2.5)))
     fig.add_hline(y=0, line=dict(color="#333", width=1))
-    apply_layout(fig, height=300,
-                 xaxis_title="Time (years)", yaxis_title="Exposure ($M)",
-                 title="Exposure Profile — EE · PFE 95%")
+    apply_layout(fig, height=300, xaxis_title="Time (years)",
+                 yaxis_title="Exposure ($M)", title="Exposure Profile — EE · PFE 95%")
     st.plotly_chart(fig, use_container_width=True)
-
-else:
-    st.info("Set trade parameters and click **▶ RUN SIMULATION**.")
