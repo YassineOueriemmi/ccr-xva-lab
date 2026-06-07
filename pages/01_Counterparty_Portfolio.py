@@ -82,19 +82,29 @@ section_title("COUNTERPARTY")
 
 RATINGS = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC"]
 
-cols = st.columns([2, 1])
+# Indicative CDS spread by rating bucket — anchors the credit curve to the rating
+RATING_CDS_BPS = {
+    "AAA": 25, "AA": 40, "A": 60, "BBB": 120, "BB": 250, "B": 450, "CCC": 800,
+}
+
+cols = st.columns([2, 1, 1])
 cols[0].markdown(
     '<div style="font-size:8px;color:#444;text-transform:uppercase;letter-spacing:.15em;">Name</div>', unsafe_allow_html=True)
 cols[1].markdown(
     '<div style="font-size:8px;color:#444;text-transform:uppercase;letter-spacing:.15em;">Rating</div>', unsafe_allow_html=True)
+cols[2].markdown(
+    '<div style="font-size:8px;color:#444;text-transform:uppercase;letter-spacing:.15em;">Indicative CDS</div>', unsafe_allow_html=True)
 
-row = st.columns([2, 1])
+row = st.columns([2, 1, 1])
 cp_name = row[0].text_input(
     "Name", value="Counterparty 1", label_visibility="collapsed", key="cp_name")
 cp_rating = row[1].selectbox(
     "Rating", RATINGS, index=3, label_visibility="collapsed", key="cp_rating")
+suggested_cds = RATING_CDS_BPS[cp_rating]
+row[2].markdown(f'<div style="padding-top:8px;color:{ORANGE};font-size:14px;">'
+                f'{suggested_cds} bps</div>', unsafe_allow_html=True)
 
-counterparty = {"name": cp_name, "rating": cp_rating}
+counterparty = {"name": cp_name, "rating": cp_rating, "suggested_cds": suggested_cds}
 
 # Run simulation
 st.markdown("---")

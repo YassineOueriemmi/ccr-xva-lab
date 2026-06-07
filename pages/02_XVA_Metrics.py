@@ -37,7 +37,11 @@ with st.sidebar:
     st.markdown('<div style="font-size:8px;color:#444;text-transform:uppercase;'
                 'letter-spacing:.2em;padding:16px 0 10px;">COUNTERPARTY CREDIT</div>',
                 unsafe_allow_html=True)
-    cds_bps = st.number_input("Counterparty CDS (bps)", value=120,
+    _cp = cps[0] if cps else {}
+    _suggested_cds = _cp.get("suggested_cds", 120)
+    st.caption(f"Indicative CDS for {_cp.get('name', 'counterparty')} "
+               f"({_cp.get('rating', '—')}): {_suggested_cds} bps")
+    cds_bps = st.number_input("Counterparty CDS (bps)", value=_suggested_cds,
                               min_value=1, max_value=5000, step=5)
     recovery = st.number_input("Recovery rate", value=0.40,
                                min_value=0.0, max_value=0.99, step=0.01, format="%.2f")
