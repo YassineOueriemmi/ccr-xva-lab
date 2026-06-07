@@ -64,9 +64,9 @@ with st.sidebar:
         "Notional ($)", value=100000000, step=10000000, format="%d")
     current_mtm = st.number_input(
         "Current MtM ($)", value=2000000, min_value=1, step=100000, format="%d",
-        help="Doit être positif : un GBM appliqué au MtM ne peut pas changer de signe, "
-             "donc un MtM de départ négatif rendrait l'EE nulle. On ne traite ici que "
-             "le risque côté CVA (exposition positive sur la contrepartie), pas la DVA.")
+        help="Must be positive: a GBM applied to the MtM can never change sign, "
+             "so a negative starting MtM would make EE structurally zero. This lab "
+             "only covers CVA (positive exposure to the counterparty), not DVA.")
     maturity = st.number_input(
         "Maturity (years)", value=5.0, min_value=0.5, max_value=30.0, step=0.5)
     vol = st.number_input("Exposure volatility", value=0.15,
